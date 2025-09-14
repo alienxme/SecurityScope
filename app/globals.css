@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap");
+
+:root {
+  /* Light mode color tokens */
+  --background: #ffffff;
+  --foreground: #374151;
+  --card: #f0fdf4;
+  --card-foreground: #374151;
+  --popover: #ffffff;
+  --popover-foreground: #374151;
+  --primary: #15803d;
+  --primary-foreground: #ffffff;
+  --secondary: #f0fdf4;
+  --secondary-foreground: #374151;
+  --muted: #f0fdf4;
+  --muted-foreground: #6b7280;
+  --accent: #84cc16;
+  --accent-foreground: #ffffff;
+  --destructive: #be123c;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #ffffff;
+  --ring: rgba(20, 184, 166, 0.5);
+  --chart-1: #15803d;
+  --chart-2: #84cc16;
+  --chart-3: #f97316;
+  --chart-4: #ea580c;
+  --chart-5: #be123c;
+  --radius: 0.5rem;
+  --sidebar: #f0fdf4;
+  --sidebar-foreground: #374151;
+  --sidebar-primary: #15803d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #84cc16;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: rgba(20, 184, 166, 0.5);
+}
+
+/* Removed @custom-variant and simplified dark mode configuration */
+.dark {
+  /* Dark mode color tokens */
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #1a1a1a;
+  --card-foreground: #fafafa;
+  --popover: #1a1a1a;
+  --popover-foreground: #fafafa;
+  --primary: #22c55e;
+  --primary-foreground: #0a0a0a;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  --accent: #84cc16;
+  --accent-foreground: #0a0a0a;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #262626;
+  --input: #1a1a1a;
+  --ring: rgba(34, 197, 94, 0.3);
+  --chart-1: #22c55e;
+  --chart-2: #84cc16;
+  --chart-3: #f97316;
+  --chart-4: #ea580c;
+  --chart-5: #ef4444;
+}
+
+@theme inline {
+  /* Font variables */
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  /* Color mappings */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Radius values */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Sidebar colors */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    /* Fixed invalid utility classes - removed @apply border-border outline-ring/50 */
+    border-color: hsl(var(--border));
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
+}
+
+/* Custom utility classes */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
