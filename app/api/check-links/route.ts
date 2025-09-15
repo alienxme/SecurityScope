@@ -5,6 +5,58 @@ const lightspeedCategoryNumbers = [
   79, 83, 84, 85, 99, 129, 131, 132, 139, 140, 900,
 ]
 
+const fortiguardCategoryNumbers = [
+  49, // Business
+  52, // Information Technology
+  50, // Information and Computer Security
+  95, // Online Meeting
+  93, // Remote Access
+  41, // Search Engines and Portals
+  81, // Secure Websites
+  97, // URL Shortening
+  94, // Web Analytics
+  56, // Web Hosting
+  84, // Web-based Applications
+  17, // Advertising
+  29, // Arts and Culture
+  89, // Auction
+  18, // Brokerage and Trading
+  77, // Child Education
+  82, // Content Servers
+  71, // Digital Postcards
+  30, // Education
+  28, // Entertainment
+  20, // Games
+  40, // Global Religion
+  33, // Health and Wellness
+  69, // Instant Messaging
+  34, // Job Search
+  35, // Medicine
+  36, // News and Media
+  70, // Newsgroups and Message Boards
+  87, // Personal Privacy
+  48, // Personal Vehicles
+  80, // Personal Websites and Blogs
+  38, // Political Organizations
+  78, // Real Estate
+  39, // Reference
+  79, // Restaurant and Dining
+  42, // Shopping
+  37, // Social Networking
+  44, // Society and Lifestyles
+  46, // Sports
+  47, // Travel
+  68, // Web Chat
+  23, // Web-based Email
+  53, // Armed Forces
+  51, // Government and Legal Organizations
+  43, // General Organizations
+  92, // Charitable Organizations
+  31, // Finance and Banking
+  100, // Artificial Intelligence Technology
+  101, // Cryptocurrency
+]
+
 const lightspeedCategories: { [key: string]: string } = {
   "-1": "Not Reviewed",
   "1": "Local-Allow",
@@ -220,6 +272,67 @@ async function fetchCategorization(url: string) {
   }
 }
 
+async function fetchFortiGuard(url: string) {
+  try {
+    console.log(`Fetching FortiGuard data for: ${url}`)
+
+    const response = await fetch("https://www.fortiguard.com/learnmore/dns", {
+      method: "POST",
+      headers: {
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Authority: "www.fortiguard.com",
+        "Content-Type": "application/json;charset=UTF-8",
+        Cookie: "cookiesession1=678A3E0F33B3CB9D7BEECD2B8A5DD036; privacy_agreement=true",
+        Origin: "https://www.fortiguard.com",
+        Referer: "https://www.fortiguard.com/services/sdns",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      },
+      body: JSON.stringify({ value: url, version: 9 }),
+    })
+
+    const result = await response.json()
+
+    console.log("FortiGuard API Response:", result)
+
+    if (result.dns) {
+      const { rating, categoryname } = result.dns
+
+      console.log(`Rating Type: ${typeof rating}`)
+      console.log(`Rating Value: ${rating}`)
+      console.log(`Category Name: ${categoryname}`)
+
+      const ratingNumber = Number.parseInt(rating, 10)
+      console.log(`Parsed Rating Number: ${ratingNumber}`)
+
+      console.log(`FortiGuard category numbers: ${fortiguardCategoryNumbers}`)
+
+      const isUnblocked = fortiguardCategoryNumbers.includes(ratingNumber)
+
+      return {
+        status: isUnblocked ? "Unblocked" : "Blocked",
+        category: categoryname || "Unknown",
+        rating: ratingNumber,
+      }
+    } else {
+      console.log(`No DNS data found for ${url}`)
+      return {
+        status: "Unknown",
+        category: "Unknown",
+        rating: null,
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching FortiGuard data:", error)
+    return {
+      status: "Error",
+      category: "Error",
+      rating: null,
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { urls, filters } = await request.json()
@@ -229,9 +342,10 @@ export async function POST(request: NextRequest) {
     }
 
     const checkLightspeed = filters?.lightspeed !== false
+    const checkFortiGuard = filters?.fortiguard !== false
 
-    if (!checkLightspeed) {
-      return NextResponse.json({ error: "Lightspeed filter must be enabled." }, { status: 400 })
+    if (!checkLightspeed && !checkFortiGuard) {
+      return NextResponse.json({ error: "At least one filter must be selected." }, { status: 400 })
     }
 
     const domainResults = []
@@ -244,6 +358,10 @@ export async function POST(request: NextRequest) {
         const domainResult = {
           url: cleanUrl,
           lightspeed: {
+            status: "Not Checked",
+            category: "Not Checked",
+          },
+          fortiguard: {
             status: "Not Checked",
             category: "Not Checked",
           },
@@ -266,6 +384,23 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        if (checkFortiGuard) {
+          console.log(`Checking FortiGuard for: ${cleanUrl}`)
+          try {
+            const fortiguardData = await fetchFortiGuard(cleanUrl)
+            domainResult.fortiguard = {
+              status: fortiguardData.status,
+              category: fortiguardData.category,
+            }
+          } catch (fortiguardError) {
+            console.error(`Error checking FortiGuard for ${cleanUrl}:`, fortiguardError)
+            domainResult.fortiguard = {
+              status: "Error",
+              category: "Error",
+            }
+          }
+        }
+
         domainResults.push(domainResult)
       } catch (error) {
         console.error(`Error processing ${cleanUrl}:`, error)
@@ -274,6 +409,10 @@ export async function POST(request: NextRequest) {
           lightspeed: {
             status: checkLightspeed ? "Error" : "Not Checked",
             category: checkLightspeed ? "Error" : "Not Checked",
+          },
+          fortiguard: {
+            status: checkFortiGuard ? "Error" : "Not Checked",
+            category: checkFortiGuard ? "Error" : "Not Checked",
           },
         })
       }

@@ -9,6 +9,10 @@ interface DomainResult {
     status: string
     category: string
   }
+  fortiguard: {
+    status: string
+    category: string
+  }
 }
 
 export default function SecurityScope() {
@@ -16,6 +20,10 @@ export default function SecurityScope() {
   const [results, setResults] = useState<DomainResult[]>([])
   const [isChecking, setIsChecking] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [filters, setFilters] = useState({
+    lightspeed: true,
+    fortiguard: true,
+  })
 
   const checkLinks = async () => {
     const domainRegex = /([a-zA-Z0-9-]+(\.[a-zA-Z]{2,}){1,2})/g
@@ -25,6 +33,11 @@ export default function SecurityScope() {
 
     if (uniqueDomains.length === 0) {
       alert("Please enter domains or URLs to analyze.")
+      return
+    }
+
+    if (!filters.lightspeed && !filters.fortiguard) {
+      alert("Please select at least one filter to analyze domains.")
       return
     }
 
@@ -45,8 +58,8 @@ export default function SecurityScope() {
           body: JSON.stringify({
             urls: batch,
             filters: {
-              lightspeed: true,
-              fortiguard: false,
+              lightspeed: filters.lightspeed,
+              fortiguard: filters.fortiguard,
             },
           }),
         })
@@ -55,12 +68,10 @@ export default function SecurityScope() {
         const batchResults = data.domains || []
         allResults.push(...batchResults)
 
-        // Update progress and results incrementally
         const progressPercent = Math.round(((i + batch.length) / uniqueDomains.length) * 100)
         setProgress(progressPercent)
         setResults([...allResults])
 
-        // Small delay to show progress visually
         if (i + batchSize < uniqueDomains.length) {
           await new Promise((resolve) => setTimeout(resolve, 200))
         }
@@ -76,7 +87,11 @@ export default function SecurityScope() {
 
   const copyUnblockedDomains = () => {
     const unblockedDomains = results
-      .filter((domain) => domain.lightspeed.status === "Unblocked")
+      .filter((domain) => {
+        const lightspeedSafe = !filters.lightspeed || domain.lightspeed.status === "Unblocked"
+        const fortiguardSafe = !filters.fortiguard || domain.fortiguard.status === "Unblocked"
+        return lightspeedSafe && fortiguardSafe
+      })
       .map((domain) => domain.url)
       .join("\n")
 
@@ -101,8 +116,12 @@ export default function SecurityScope() {
     }
   }
 
-  const getSafeCount = () => {
+  const getLightspeedSafeCount = () => {
     return results.filter((domain) => domain.lightspeed.status === "Unblocked").length
+  }
+
+  const getFortiguardSafeCount = () => {
+    return results.filter((domain) => domain.fortiguard.status === "Unblocked").length
   }
 
   return (
@@ -117,8 +136,8 @@ export default function SecurityScope() {
               <h1 className="text-4xl md:text-5xl font-display font-bold gradient-text">SecurityScope</h1>
             </div>
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              Advanced domain security analysis powered by Lightspeed filtering systems. Instantly verify domain safety
-              and categorization for enhanced cybersecurity.
+              Advanced domain security analysis powered by Lightspeed and FortiGuard filtering systems. Instantly verify
+              domain safety and categorization for enhanced cybersecurity.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -128,7 +147,7 @@ export default function SecurityScope() {
               </div>
               <div className="flex items-center gap-3 p-4 bg-card rounded-lg border border-border">
                 <Shield className="w-5 h-5 text-primary" />
-                <span className="text-sm font-medium">Lightspeed Filtering</span>
+                <span className="text-sm font-medium">Dual Filtering</span>
               </div>
               <div className="flex items-center gap-3 p-4 bg-card rounded-lg border border-border">
                 <Search className="w-5 h-5 text-chart-3" />
@@ -145,6 +164,31 @@ export default function SecurityScope() {
             <Search className="w-5 h-5 text-accent" />
             Domain Input
           </h3>
+
+          <div className="mb-4">
+            <p className="text-sm font-medium mb-2">Select Filters:</p>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.lightspeed}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, lightspeed: e.target.checked }))}
+                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                />
+                <span className="text-sm">Lightspeed</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.fortiguard}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, fortiguard: e.target.checked }))}
+                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                />
+                <span className="text-sm">FortiGuard</span>
+              </label>
+            </div>
+          </div>
+
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -190,7 +234,7 @@ export default function SecurityScope() {
 
         {results.length > 0 && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div className="bg-card rounded-xl border border-border p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-primary/10 rounded-lg">
@@ -201,20 +245,39 @@ export default function SecurityScope() {
                 <p className="text-2xl font-bold text-foreground">{results.length}</p>
               </div>
 
-              <div className="bg-card rounded-xl border border-border p-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-chart-1/10 rounded-lg">
-                    <CheckCircle className="w-5 h-5 text-chart-1" />
+              {filters.lightspeed && (
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-chart-1/10 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-chart-1" />
+                    </div>
+                    <span className="font-display font-semibold">Lightspeed Safe</span>
                   </div>
-                  <span className="font-display font-semibold">Lightspeed Safe</span>
+                  <p className="text-2xl font-bold text-chart-1">{getLightspeedSafeCount()}</p>
                 </div>
-                <p className="text-2xl font-bold text-chart-1">{getSafeCount()}</p>
-                <button
-                  onClick={copyUnblockedDomains}
-                  className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-                >
-                  <Copy className="w-3 h-3" />
-                  Copy safe domains
+              )}
+
+              {filters.fortiguard && (
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-chart-2/10 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-chart-2" />
+                    </div>
+                    <span className="font-display font-semibold">FortiGuard Safe</span>
+                  </div>
+                  <p className="text-2xl font-bold text-chart-2">{getFortiguardSafeCount()}</p>
+                </div>
+              )}
+
+              <div className="bg-card rounded-xl border border-border p-6">
+                <button onClick={copyUnblockedDomains} className="w-full text-left">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-accent/10 rounded-lg">
+                      <Copy className="w-5 h-5 text-accent" />
+                    </div>
+                    <span className="font-display font-semibold">Copy Safe Domains</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Click to copy all safe domains</p>
                 </button>
               </div>
             </div>
@@ -228,27 +291,58 @@ export default function SecurityScope() {
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="text-left p-4 font-medium">Domain</th>
-                      <th className="text-left p-4 font-medium">Lightspeed Status</th>
-                      <th className="text-left p-4 font-medium">Category</th>
+                      {filters.lightspeed && (
+                        <>
+                          <th className="text-left p-4 font-medium">Lightspeed Status</th>
+                          <th className="text-left p-4 font-medium">Lightspeed Category</th>
+                        </>
+                      )}
+                      {filters.fortiguard && (
+                        <>
+                          <th className="text-left p-4 font-medium">FortiGuard Status</th>
+                          <th className="text-left p-4 font-medium">FortiGuard Category</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((domain, index) => (
                       <tr key={index} className="border-b border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4 font-mono text-sm">{domain.url}</td>
-                        <td className="p-4">
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(domain.lightspeed.status)}
-                            <span
-                              className={`text-sm font-medium ${
-                                domain.lightspeed.status === "Unblocked" ? "text-primary" : "text-destructive"
-                              }`}
-                            >
-                              {domain.lightspeed.status}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-sm text-muted-foreground">{domain.lightspeed.category || "N/A"}</td>
+                        {filters.lightspeed && (
+                          <>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(domain.lightspeed.status)}
+                                <span
+                                  className={`text-sm font-medium ${
+                                    domain.lightspeed.status === "Unblocked" ? "text-primary" : "text-destructive"
+                                  }`}
+                                >
+                                  {domain.lightspeed.status}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-sm text-muted-foreground">{domain.lightspeed.category || "N/A"}</td>
+                          </>
+                        )}
+                        {filters.fortiguard && (
+                          <>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(domain.fortiguard.status)}
+                                <span
+                                  className={`text-sm font-medium ${
+                                    domain.fortiguard.status === "Unblocked" ? "text-primary" : "text-destructive"
+                                  }`}
+                                >
+                                  {domain.fortiguard.status}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-sm text-muted-foreground">{domain.fortiguard.category || "N/A"}</td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
