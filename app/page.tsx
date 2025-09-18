@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import {
   Shield,
   Search,
@@ -37,12 +37,16 @@ export default function SecurityScope() {
     lightspeed: true,
     fortiguard: true,
   })
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    const storedTheme = localStorage.getItem("theme")
-    return storedTheme === "light" ? "light" : "dark"
-  })
+  const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [showSettings, setShowSettings] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme")
+    const initialTheme = storedTheme === "light" ? "light" : "dark"
+    setTheme(initialTheme)
+    document.documentElement.classList.toggle("dark", initialTheme === "dark")
+  }, [])
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark"
