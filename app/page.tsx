@@ -37,7 +37,10 @@ export default function SecurityScope() {
     lightspeed: true,
     fortiguard: true,
   })
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const storedTheme = localStorage.getItem("theme")
+    return storedTheme === "light" ? "light" : "dark"
+  })
   const [showSettings, setShowSettings] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -45,6 +48,7 @@ export default function SecurityScope() {
     const newTheme = theme === "dark" ? "light" : "dark"
     setTheme(newTheme)
     document.documentElement.classList.toggle("dark", newTheme === "dark")
+    localStorage.setItem("theme", newTheme)
   }
 
   const openInAboutBlank = () => {
@@ -56,6 +60,10 @@ export default function SecurityScope() {
       win.document.documentElement.style.margin = "0"
       win.document.documentElement.style.padding = "0"
 
+      if (theme === "dark") {
+        win.document.documentElement.classList.add("dark")
+      }
+
       const iframe = document.createElement("iframe")
       iframe.style.border = "none"
       iframe.style.width = "100vw"
@@ -66,6 +74,18 @@ export default function SecurityScope() {
       iframe.style.top = "0"
       iframe.style.left = "0"
       iframe.src = window.location.href
+
+      iframe.onload = () => {
+        try {
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+          if (iframeDoc && theme === "dark") {
+            iframeDoc.documentElement.classList.add("dark")
+          }
+        } catch (e) {
+          console.log("Could not access iframe document for theme application")
+        }
+      }
+
       win.document.body.appendChild(iframe)
       win.document.title = ""
     }
@@ -225,12 +245,12 @@ export default function SecurityScope() {
   }
 
   return (
-    <div className={`min-h-screen bg-background ${theme}`}>
+    <div className={`min-h-screen bg-background text-foreground ${theme}`}>
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card rounded-xl border border-border p-6 max-w-md w-full mx-4">
+          <div className="bg-card text-card-foreground rounded-xl border border-border p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-display font-semibold">Settings</h3>
+              <h3 className="text-lg font-display font-semibold text-foreground">Settings</h3>
               <button onClick={() => setShowSettings(false)} className="text-muted-foreground hover:text-foreground">
                 ×
               </button>
@@ -238,10 +258,10 @@ export default function SecurityScope() {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Theme</span>
+                <span className="text-sm font-medium text-foreground">Theme</span>
                 <button
                   onClick={toggleTheme}
-                  className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
                 >
                   {theme === "dark" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                   <span className="text-sm capitalize">{theme}</span>
@@ -249,7 +269,7 @@ export default function SecurityScope() {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">About Blank Cloak</span>
+                <span className="text-sm font-medium text-foreground">About Blank Cloak</span>
                 <button
                   onClick={openInAboutBlank}
                   className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
@@ -269,9 +289,10 @@ export default function SecurityScope() {
             <div className="flex items-center justify-center gap-3 mb-6 relative">
               <button
                 onClick={() => setShowSettings(true)}
-                className="absolute right-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-0 top-0 p-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all duration-200 z-10"
+                title="Settings"
               >
-                <Settings className="w-5 h-5" />
+                <Settings className="w-6 h-6" />
               </button>
               <div className="p-3 bg-primary/20 rounded-xl">
                 <Shield className="w-8 h-8 text-primary" />
@@ -336,7 +357,7 @@ export default function SecurityScope() {
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Enter domains, URLs, or paste any text containing domains here..."
-            className="w-full h-32 p-4 bg-input border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+            className="w-full h-32 p-4 bg-input text-foreground placeholder:text-muted-foreground border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
           />
           <div className="flex justify-between items-center mt-4">
             <p className="text-sm text-muted-foreground">Domains will be automatically extracted from your text</p>
