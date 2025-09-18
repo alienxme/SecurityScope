@@ -40,12 +40,14 @@ export default function SecurityScope() {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [showSettings, setShowSettings] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const [isInAboutBlank, setIsInAboutBlank] = useState(false)
 
   useEffect(() => {
     const storedTheme = localStorage.getItem("theme")
     const initialTheme = storedTheme === "light" ? "light" : "dark"
     setTheme(initialTheme)
     document.documentElement.classList.toggle("dark", initialTheme === "dark")
+    setIsInAboutBlank(window.location.href === "about:blank" || window.parent !== window)
   }, [])
 
   const toggleTheme = () => {
@@ -272,16 +274,18 @@ export default function SecurityScope() {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-foreground">About Blank Cloak</span>
-                <button
-                  onClick={openInAboutBlank}
-                  className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span className="text-sm">Open</span>
-                </button>
-              </div>
+              {!isInAboutBlank && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-foreground">About Blank Cloak</span>
+                  <button
+                    onClick={openInAboutBlank}
+                    className="flex items-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span className="text-sm">Open</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
