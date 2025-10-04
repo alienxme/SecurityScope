@@ -106,9 +106,16 @@ export default function SecurityScope() {
   }
 
   const checkLinks = async () => {
-    const domainRegex = /([a-zA-Z0-9-]+(\.[a-zA-Z]{2,}){1,2})/g
-    const extractedDomains = inputText.match(domainRegex)
-    const filteredDomains = extractedDomains?.filter((domain) => domain !== "your.domain.com") || []
+    const urlRegex = /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})/gi
+    const matches = inputText.matchAll(urlRegex)
+    const extractedDomains: string[] = []
+
+    for (const match of matches) {
+      const fullDomain = match[1]
+      extractedDomains.push(fullDomain)
+    }
+
+    const filteredDomains = extractedDomains.filter((domain) => domain !== "your.domain.com")
     const uniqueDomains = [...new Set(filteredDomains)]
 
     if (uniqueDomains.length === 0) {
