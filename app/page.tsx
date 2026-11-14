@@ -15,28 +15,16 @@ import {
   Sun,
   Moon,
 } from "lucide-react"
-
-interface DomainResult {
-  url: string
-  lightspeed: {
-    status: string
-    category: string
-  }
-  fortiguard: {
-    status: string
-    category: string
-  }
-}
+import { FILTERS, defaultFilterSelection, type DomainResult, type FilterKey } from "@/lib/filters/meta"
 
 export default function SecurityScope() {
   const [inputText, setInputText] = useState("")
   const [results, setResults] = useState<DomainResult[]>([])
   const [isChecking, setIsChecking] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [filters, setFilters] = useState({
-    lightspeed: true,
-    fortiguard: true,
-  })
+  const [filters, setFilters] = useState(defaultFilterSelection)
+  // Columns shown in the results follow what was actually checked, not the live checkboxes.
+  const [checkedFilters, setCheckedFilters] = useState<FilterKey[]>([])
   const [theme, setTheme] = useState<"dark" | "light">("dark")
   const [showSettings, setShowSettings] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -123,7 +111,8 @@ export default function SecurityScope() {
       return
     }
 
-    if (!filters.lightspeed && !filters.fortiguard) {
+    const selectedKeys = FILTERS.filter((f) => filters[f.key]).map((f) => f.key)
+    if (selectedKeys.length === 0) {
       alert("Please select at least one filter to analyze domains.")
       return
     }
@@ -132,6 +121,7 @@ export default function SecurityScope() {
     setIsChecking(true)
     setProgress(0)
     setResults([])
+    setCheckedFilters(selectedKeys)
 
     try {
       const batchSize = 5
@@ -149,15 +139,15 @@ export default function SecurityScope() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             urls: batch,
-            filters: {
-              lightspeed: filters.lightspeed,
-              fortiguard: filters.fortiguard,
-            },
+            filters,
           }),
           signal: abortControllerRef.current.signal,
         })
 
         const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || "Request failed")
+        }
         const batchResults = data.domains || []
         allResults.push(...batchResults)
 
@@ -182,56 +172,27 @@ export default function SecurityScope() {
     }
   }
 
+  const copyToClipboard = (domains: string[], label: string) => {
+    navigator.clipboard.writeText(domains.join("\n")).then(
+      () => {
+        alert(`${label} copied to clipboard!`)
+      },
+      (err) => {
+        console.error("Could not copy text: ", err)
+      },
+    )
+  }
+
   const copyUnblockedDomains = () => {
-    const unblockedDomains = results
-      .filter((domain) => {
-        const lightspeedSafe = !filters.lightspeed || domain.lightspeed.status === "Unblocked"
-        const fortiguardSafe = !filters.fortiguard || domain.fortiguard.status === "Unblocked"
-        return lightspeedSafe && fortiguardSafe
-      })
+    const safe = results
+      .filter((domain) => checkedFilters.every((key) => domain[key].status === "Unblocked"))
       .map((domain) => domain.url)
-      .join("\n")
-
-    navigator.clipboard.writeText(unblockedDomains).then(
-      () => {
-        alert("Safe domains copied to clipboard!")
-      },
-      (err) => {
-        console.error("Could not copy text: ", err)
-      },
-    )
+    copyToClipboard(safe, "Safe domains")
   }
 
-  const copyLightspeedSafeDomains = () => {
-    const lightspeedSafeDomains = results
-      .filter((domain) => domain.lightspeed.status === "Unblocked")
-      .map((domain) => domain.url)
-      .join("\n")
-
-    navigator.clipboard.writeText(lightspeedSafeDomains).then(
-      () => {
-        alert("Lightspeed safe domains copied to clipboard!")
-      },
-      (err) => {
-        console.error("Could not copy text: ", err)
-      },
-    )
-  }
-
-  const copyFortiguardSafeDomains = () => {
-    const fortiguardSafeDomains = results
-      .filter((domain) => domain.fortiguard.status === "Unblocked")
-      .map((domain) => domain.url)
-      .join("\n")
-
-    navigator.clipboard.writeText(fortiguardSafeDomains).then(
-      () => {
-        alert("FortiGuard safe domains copied to clipboard!")
-      },
-      (err) => {
-        console.error("Could not copy text: ", err)
-      },
-    )
+  const copyFilterSafeDomains = (key: FilterKey, label: string) => {
+    const safe = results.filter((domain) => domain[key].status === "Unblocked").map((domain) => domain.url)
+    copyToClipboard(safe, `${label} safe domains`)
   }
 
   const getStatusIcon = (status: string) => {
@@ -245,13 +206,7 @@ export default function SecurityScope() {
     }
   }
 
-  const getLightspeedSafeCount = () => {
-    return results.filter((domain) => domain.lightspeed.status === "Unblocked").length
-  }
-
-  const getFortiguardSafeCount = () => {
-    return results.filter((domain) => domain.fortiguard.status === "Unblocked").length
-  }
+  const getSafeCount = (key: FilterKey) => results.filter((domain) => domain[key].status === "Unblocked").length
 
   const clearText = () => {
     setInputText("")
@@ -315,8 +270,8 @@ export default function SecurityScope() {
               <h1 className="text-4xl md:text-5xl font-display font-bold gradient-text">SecurityScope</h1>
             </div>
             <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-              Advanced domain security analysis powered by Lightspeed and FortiGuard filtering systems. Instantly verify
-              domain safety and categorization for enhanced cybersecurity.
+              Advanced domain security analysis across Lightspeed, FortiGuard, Cisco Talos, GoGuardian, Linewize, Blocksi,
+              Senso and LanSchool. Instantly verify domain safety and categorization for enhanced cybersecurity.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -326,7 +281,7 @@ export default function SecurityScope() {
               </div>
               <div className="flex items-center gap-3 p-4 bg-card rounded-lg">
                 <Shield className="w-5 h-5 text-primary" />
-                <span className="text-sm font-medium">Dual Filtering</span>
+                <span className="text-sm font-medium">{FILTERS.length} Filters</span>
               </div>
               <div className="flex items-center gap-3 p-4 bg-card rounded-lg">
                 <Search className="w-5 h-5 text-chart-3" />
@@ -346,25 +301,18 @@ export default function SecurityScope() {
 
           <div className="mb-4">
             <p className="text-sm font-medium mb-2">Select Filters:</p>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.lightspeed}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, lightspeed: e.target.checked }))}
-                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
-                />
-                <span className="text-sm">Lightspeed</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={filters.fortiguard}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, fortiguard: e.target.checked }))}
-                  className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
-                />
-                <span className="text-sm">FortiGuard</span>
-              </label>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {FILTERS.map((f) => (
+                <label key={f.key} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters[f.key]}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, [f.key]: e.target.checked }))}
+                    className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                  />
+                  <span className="text-sm">{f.label}</span>
+                </label>
+              ))}
             </div>
           </div>
 
@@ -444,35 +392,20 @@ export default function SecurityScope() {
                 <p className="text-2xl font-bold text-foreground">{results.length}</p>
               </div>
 
-              {filters.lightspeed && (
-                <div className="bg-card rounded-xl p-6">
-                  <button onClick={copyLightspeedSafeDomains} className="w-full text-left">
+              {FILTERS.filter((f) => checkedFilters.includes(f.key)).map((f) => (
+                <div key={f.key} className="bg-card rounded-xl p-6">
+                  <button onClick={() => copyFilterSafeDomains(f.key, f.label)} className="w-full text-left">
                     <div className="flex items-center gap-3 mb-2">
                       <div className="p-2 bg-chart-1/10 rounded-lg">
                         <Copy className="w-5 h-5 text-chart-1" />
                       </div>
-                      <span className="font-display font-semibold">Lightspeed Safe</span>
+                      <span className="font-display font-semibold">{f.label} Safe</span>
                     </div>
-                    <p className="text-2xl font-bold text-chart-1 mb-1">{getLightspeedSafeCount()}</p>
+                    <p className="text-2xl font-bold text-chart-1 mb-1">{getSafeCount(f.key)}</p>
                     <p className="text-xs text-muted-foreground">Click to copy</p>
                   </button>
                 </div>
-              )}
-
-              {filters.fortiguard && (
-                <div className="bg-card rounded-xl p-6">
-                  <button onClick={copyFortiguardSafeDomains} className="w-full text-left">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-chart-2/10 rounded-lg">
-                        <Copy className="w-5 h-5 text-chart-2" />
-                      </div>
-                      <span className="font-display font-semibold">FortiGuard Safe</span>
-                    </div>
-                    <p className="text-2xl font-bold text-chart-2 mb-1">{getFortiguardSafeCount()}</p>
-                    <p className="text-xs text-muted-foreground">Click to copy</p>
-                  </button>
-                </div>
-              )}
+              ))}
 
               <div className="bg-card rounded-xl p-6">
                 <button onClick={copyUnblockedDomains} className="w-full text-left">
@@ -496,58 +429,32 @@ export default function SecurityScope() {
                   <thead className="bg-muted/50">
                     <tr>
                       <th className="text-left p-4 font-medium">Domain</th>
-                      {filters.lightspeed && (
-                        <>
-                          <th className="text-left p-4 font-medium">Lightspeed Status</th>
-                          <th className="text-left p-4 font-medium">Lightspeed Category</th>
-                        </>
-                      )}
-                      {filters.fortiguard && (
-                        <>
-                          <th className="text-left p-4 font-medium">FortiGuard Status</th>
-                          <th className="text-left p-4 font-medium">FortiGuard Category</th>
-                        </>
-                      )}
+                      {FILTERS.filter((f) => checkedFilters.includes(f.key)).map((f) => (
+                        <th key={f.key} className="text-left p-4 font-medium whitespace-nowrap">
+                          {f.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {results.map((domain, index) => (
                       <tr key={index} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
                         <td className="p-4 font-mono text-sm">{domain.url}</td>
-                        {filters.lightspeed && (
-                          <>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(domain.lightspeed.status)}
-                                <span
-                                  className={`text-sm font-medium ${
-                                    domain.lightspeed.status === "Unblocked" ? "text-primary" : "text-destructive"
-                                  }`}
-                                >
-                                  {domain.lightspeed.status}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-4 text-sm text-muted-foreground">{domain.lightspeed.category || "N/A"}</td>
-                          </>
-                        )}
-                        {filters.fortiguard && (
-                          <>
-                            <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(domain.fortiguard.status)}
-                                <span
-                                  className={`text-sm font-medium ${
-                                    domain.fortiguard.status === "Unblocked" ? "text-primary" : "text-destructive"
-                                  }`}
-                                >
-                                  {domain.fortiguard.status}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-4 text-sm text-muted-foreground">{domain.fortiguard.category || "N/A"}</td>
-                          </>
-                        )}
+                        {FILTERS.filter((f) => checkedFilters.includes(f.key)).map((f) => (
+                          <td key={f.key} className="p-4 align-top">
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(domain[f.key].status)}
+                              <span
+                                className={`text-sm font-medium ${
+                                  domain[f.key].status === "Unblocked" ? "text-primary" : "text-destructive"
+                                }`}
+                              >
+                                {domain[f.key].status}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">{domain[f.key].category || "N/A"}</p>
+                          </td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>

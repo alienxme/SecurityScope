@@ -21,9 +21,9 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "SecurityScope - Advanced Domain Security Analysis",
   description:
-    "Professional domain security analysis powered by Lightspeed and FortiGuard filtering systems. Instantly verify domain safety and categorization.",
+    "Professional domain security analysis across Lightspeed, FortiGuard, Cisco Talos, GoGuardian, Linewize, Blocksi, Senso and LanSchool. Instantly verify domain safety and categorization.",
   generator: "v0.app",
-  keywords: ["domain security", "cybersecurity", "lightspeed", "fortiguard", "domain analysis"],
+  keywords: ["domain security", "cybersecurity", "lightspeed", "fortiguard", "cisco talos", "goguardian", "linewize", "blocksi", "senso", "lanschool", "domain analysis"],
 }
 
 export default function RootLayout({
