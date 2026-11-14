@@ -9,6 +9,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    // `ws` is used server-side for the Lightspeed lookup; keep it out of the webpack bundle.
+    serverComponentsExternalPackages: ["ws"],
+  },
 }
 
 export default nextConfig
